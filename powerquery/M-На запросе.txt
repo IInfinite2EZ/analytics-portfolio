@@ -1,0 +1,20 @@
+let
+    Источник = Folder.Files("<путь к папке>\..."),
+    #"Текст в нижнем регистре" = Table.TransformColumns(Источник,{{"Extension", Text.Lower, type text}}),
+    #"Строки с примененным фильтром" = Table.SelectRows(#"Текст в нижнем регистре", each not Text.StartsWith([Name], "~$")),
+    #"Другие удаленные столбцы" = Table.SelectColumns(#"Строки с примененным фильтром",{"Content", "Name"}),
+    #"Добавлен пользовательский объект" = Table.AddColumn(#"Другие удаленные столбцы", "Пользовательский", each Excel.Workbook([Content])),
+    #"Удаленные столбцы" = Table.RemoveColumns(#"Добавлен пользовательский объект",{"Content", "Name"}),
+    #"Развернутый элемент Пользовательский" = Table.ExpandTableColumn(#"Удаленные столбцы", "Пользовательский", {"Name", "Data", "Item", "Kind", "Hidden"}, {"Name.1", "Data", "Item", "Kind", "Hidden"}),
+    #"Строки с примененным фильтром1" = Table.SelectRows(#"Развернутый элемент Пользовательский", each true),
+    #"Другие удаленные столбцы1" = Table.SelectColumns(#"Строки с примененным фильтром1",{"Data"}),
+    #"Развернутый элемент Data" = Table.ExpandTableColumn(#"Другие удаленные столбцы1", "Data", {"Column1", "Column2", "Column3", "Column4", "Column5", "Column6", "Column7", "Column8"}, {"Column1", "Column2", "Column3", "Column4", "Column5", "Column6", "Column7", "Column8"}),
+    #"Удаленные столбцы1" = Table.RemoveColumns(#"Развернутый элемент Data",{"Column6", "Column7", "Column8"}),
+    #"Повышенные заголовки" = Table.PromoteHeaders(#"Удаленные столбцы1", [PromoteAllScalars=true]),
+    #"Измененный тип" = Table.TransformColumnTypes(#"Повышенные заголовки",{{"Номер убытка", Int64.Type}, {"Заявитель", type text}, {"Телефон", Int64.Type}, {"Дата", type date}, {"Статус", type text}}),
+    #"Удаленные ошибки" = Table.RemoveRowsWithErrors(#"Измененный тип", {"Номер убытка"}),
+    #"Извлеченный год" = Table.TransformColumns(#"Удаленные ошибки",{{"Дата", Date.Year, Int64.Type}}),
+    #"Строки с примененным фильтром2" = Table.SelectRows(#"Извлеченный год", each ([Статус] = "Запрос")),
+    #"Сгруппированные строки" = Table.Group(#"Строки с примененным фильтром2", {"Дата"}, {{"Количество", each Table.RowCount(_), Int64.Type}})
+in
+    #"Сгруппированные строки"

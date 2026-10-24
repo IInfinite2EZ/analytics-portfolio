@@ -1,0 +1,25 @@
+let
+    Источник = Folder.Files("<путь к папке>\..."),
+    #"Текст в нижнем регистре" = Table.TransformColumns(Источник,{{"Name", Text.Lower, type text}, {"Extension", Text.Lower, type text}}),
+    #"Строки с примененным фильтром" = Table.SelectRows(#"Текст в нижнем регистре", each not Text.StartsWith([Name], "~$")),
+    #"Другие удаленные столбцы" = Table.SelectColumns(#"Строки с примененным фильтром",{"Content", "Name"}),
+    #"Добавлен пользовательский объект" = Table.AddColumn(#"Другие удаленные столбцы", "Пользовательский", each Excel.Workbook([Content])),
+    #"Удаленные столбцы" = Table.RemoveColumns(#"Добавлен пользовательский объект",{"Content"}),
+    #"Развернутый элемент Пользовательский" = Table.ExpandTableColumn(#"Удаленные столбцы", "Пользовательский", {"Name", "Data", "Item", "Kind", "Hidden"}, {"Name.1", "Data", "Item", "Kind", "Hidden"}),
+    #"Строки с примененным фильтром1" = Table.SelectRows(#"Развернутый элемент Пользовательский", each true),
+    #"Другие удаленные столбцы1" = Table.SelectColumns(#"Строки с примененным фильтром1",{"Name", "Data"}),
+    #"Развернутый элемент Data" = Table.ExpandTableColumn(#"Другие удаленные столбцы1", "Data", {"Column1", "Column2", "Column3", "Column4"}, {"Column1", "Column2", "Column3", "Column4"}),
+    #"Строки с примененным фильтром2" = Table.SelectRows(#"Развернутый элемент Data", each ([Column1] <> null and [Column1] <> "Номер убытка")),
+    #"Другие удаленные столбцы2" = Table.SelectColumns(#"Строки с примененным фильтром2",{"Name"}),
+    #"Разделить столбец по разделителю" = Table.SplitColumn(#"Другие удаленные столбцы2", "Name", Splitter.SplitTextByEachDelimiter({" "}, QuoteStyle.Csv, false), {"Name.1", "Name.2"}),
+    #"Разделить столбец по разделителю1" = Table.SplitColumn(#"Разделить столбец по разделителю", "Name.2", Splitter.SplitTextByEachDelimiter({"."}, QuoteStyle.Csv, true), {"Name.2.1", "Name.2.2"}),
+    #"Добавлен пользовательский объект1" = Table.AddColumn(#"Разделить столбец по разделителю1", "Пользовательский", each if Text.Length([Name.1]) = 5 then [Name.1] & ".2025" else [Name.1]),
+    #"Удаленные столбцы1" = Table.RemoveColumns(#"Добавлен пользовательский объект1",{"Name.1", "Name.2.2"}),
+    #"Измененный тип" = Table.TransformColumnTypes(#"Удаленные столбцы1",{{"Пользовательский", type date}}),
+    #"Дублированный столбец" = Table.DuplicateColumn(#"Измененный тип", "Пользовательский", "Копия Пользовательский"),
+    #"Извлеченный месяц" = Table.TransformColumns(#"Дублированный столбец",{{"Копия Пользовательский", Date.Month, Int64.Type}}),
+    #"Строки с примененным фильтром3" = Table.SelectRows(#"Извлеченный месяц", each [Копия Пользовательский] <= 5),
+    #"Сгруппированные строки" = Table.Group(#"Строки с примененным фильтром3", {"Name.2.1", "Пользовательский"}, {{"Количество", each Table.RowCount(_), Int64.Type}}),
+    #"Переименованные столбцы" = Table.RenameColumns(#"Сгруппированные строки",{{"Name.2.1", "Сценарий"}, {"Пользовательский", "Дата"}})
+in
+    #"Переименованные столбцы"
